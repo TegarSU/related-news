@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[8]:
-
-
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
@@ -82,48 +76,37 @@ def encode(docId,dict_encoder):
     return entryId    
 
 def get_similar(event):
-    entryId = event['entryId']
-    loaded_model,loaded_corpus,loaded_dict,dict_encoder = load_model()
+    try:
+        entryId = event['entryId']
+        loaded_model,loaded_corpus,loaded_dict,dict_encoder = load_model()
+    except:
+        pass
     
-    #Get Doc
-    statement = " WHERE entryId = {}"
-    data = open_table(['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
-    text = data[1].values[0]
+    try:
+        #Get Doc
+        statement = " WHERE entryId = {}"
+        data = open_table(['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
+        text = data[1].values[0]
+    except:
+        pass
     
-    #Test new document
-    bow = loaded_dict.doc2bow(preprocessing(text))
+    try:
+        #Test new document
+        bow = loaded_dict.doc2bow(preprocessing(text))
     
-    lda_index = similarities.MatrixSimilarity(loaded_model[loaded_corpus])
+        lda_index = similarities.MatrixSimilarity(loaded_model[loaded_corpus])
     
-    query = lda_index[loaded_model[bow]]
-    # # Sort the similarities
-    sort_sim = sorted(enumerate(query), key=lambda item: -item[1])
+        query = lda_index[loaded_model[bow]]
+        # # Sort the similarities
+        sort_sim = sorted(enumerate(query), key=lambda item: -item[1])
+    except:
+        pass
     
-    result = [x[0] for x in sort_sim] #Get Univ ID
+    try:
+        result = [x[0] for x in sort_sim] #Get Univ ID
+        result = encode(result,dict_encoder)
+        result.remove(entryId) #Remove Input EntryId
+    except:
+        pass
     
-    result = encode(result[:5],dict_encoder)
-    
-    return result
-
-
-# In[6]:
-
-
-# from time import process_time
-
-
-# In[10]:
-
-
-# t = process_time()
-# #do some stuff
-# print(get_similar(63282109))
-# elapsed_time = process_time() - t
-# print(elapsed_time)
-
-
-# In[ ]:
-
-
-
-
+    return result[:5]
