@@ -2,31 +2,24 @@
 # coding: utf-8
 
 # In[6]:
-
-
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
 from filepath import *
-
-from re import sub
-from datetime import datetime
-
-import warnings
-warnings.filterwarnings('ignore')
+from preprocessing import preprocessing_text as pre
 
 # import gensim
 from gensim.models.ldamodel import LdaModel
 from gensim.models import Phrases
 from gensim import corpora
-
-# from ast import literal_eval
-from pickle import dump
-
 from gensim.models.coherencemodel import CoherenceModel
 
-import pandas as pd
-from json import loads,dumps
+from pickle import dump
+from json import dumps
+from datetime import datetime
+from re import sub
+import warnings
+warnings.filterwarnings('ignore')
 
 # import spacy
 from spacy.lang.id import Indonesian,stop_words
@@ -34,29 +27,15 @@ nlp = Indonesian()  # use directly
 stopwords = stop_words.STOP_WORDS 
 stopwords |= {"nya","jurusan","jurus","the","of"}
 
-# #Akronim
-def slang(tokenized_sentence):
-    slang_word_dict = loads(open("../data/slang_word_dict.txt", 'r').read())
-
-    for index in range(len(tokenized_sentence)):
-        for key, value in slang_word_dict.items():
-            for v in value:
-                if tokenized_sentence[index] == v:
-                    tokenized_sentence[index] = key
-                else:
-                    continue
-                    
-    return " ".join(tokenized_sentence)
-
 def preprocessing(text):
-    text = sub('<[^<]+?>', '', str(text)) #remove tag
-    text = text.lower() #lower\n",
-    text = sub(r'[^a-z]',' ',str(text)) #get alphabet only
-    text = sub(r'\s+', ' ', text) #remove white space
+    text = pre.remove_tag(text) #Remove Tag
+    text = pre.lower(text) #Lower
+    text = pre.remove_link(text) #Remove Link
+    text = pre.alphabet_only(text) #Get Alphabet
     text = sub(r'sobat pintar','',text) # sorry:(
+    text = pre.remove_whitespace(text) #Remove Whitespace
     text = [token.text for token in nlp(text)] #Token
-    text = slang(text)#slang word
-    text = sub(r'\s+', ' ', text) #remove white space
+    text = pre.slang(text)
     text = [token.lemma_ for token in nlp(text) if token.lemma_ not in stopwords] #Lemma & stopword
     
     return text
@@ -87,8 +66,6 @@ def make_corpus(data):
     #Make list of list
     mylist = []
     for i,j in data.iterrows():
-    #     print(j.content)
-    #     tmp = literal_eval(j.content)
         mylist.append(j.content)
 
     # Add bigrams and trigrams to docs,minimum count 10 means only that appear 10 times or more.
@@ -130,8 +107,8 @@ def train():
         with open('../data/train_news.txt', 'a+') as output:
             output.write("Get Today Data Success, {} \n".format(date_end))
         print("Get today Date Success")
-    except:
-        print("Get today Date Failed")
+    except Exception as e:
+        print("Get today Date Failed",e)
         with open('../data/train_news.txt', 'a+') as output:
             output.write("Get Today Data Success, {} \n".format(date_end))
     
@@ -147,7 +124,7 @@ def train():
             file.write(dumps(dict_encoder)) # use `json.loads` to do the reverse
         print("Make Dictionary and Corpus Success")
 
-    except:
+    except Exception as e:
         print("Make Dictionary and Corpus Failed")
     
     try:
@@ -157,22 +134,7 @@ def train():
         
         save_model(best_model)
         print("Train LDA Success")
-    except:
+    except Exception as e:
         print("Train LDA Failed")
     
 train()
-
-# t = process_time()
-# #do some stuff
-# train()
-# elapsed_time = process_time() - t
-# print(elapsed_time)
-
-# from time import process_time
-
-# t = process_time()
-# #do some stuff
-# train()
-# elapsed_time = process_time() - t
-# print(elapsed_time)
-

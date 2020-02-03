@@ -1,14 +1,11 @@
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
-
-import warnings
-warnings.filterwarnings('ignore')
+from preprocessing import preprocessing_text as pre
 
 # import gensim
 from gensim.models.ldamodel import LdaModel
-
-from re import sub
+from gensim import similarities
 
 # import spacy
 from spacy.lang.id import Indonesian,stop_words
@@ -19,32 +16,19 @@ stopwords |= {"nya","jurusan","jurus","the","of"}
 from json import loads
 from ast import literal_eval
 from pickle import load
-
-from gensim import similarities
-
-# #Akronim
-def slang(tokenized_sentence):
-    slang_word_dict = loads(open("../data/slang_word_dict.txt", 'r').read())
-
-    for index in range(len(tokenized_sentence)):
-        for key, value in slang_word_dict.items():
-            for v in value:
-                if tokenized_sentence[index] == v:
-                    tokenized_sentence[index] = key
-                else:
-                    continue
-                    
-    return " ".join(tokenized_sentence)
+from re import sub
+import warnings
+warnings.filterwarnings('ignore')
 
 def preprocessing(text):
-    text = sub('<[^<]+?>', '', str(text)) #remove tag
-    text = text.lower() #lower\n",
-    text = sub(r'[^a-z]',' ',str(text)) #get alphabet only
-    text = sub(r'\s+', ' ', text) #remove white space
+    text = pre.remove_tag(text) #Remove Tag
+    text = pre.lower(text) #Lower
+    text = pre.remove_link(text) #Remove Link
+    text = pre.alphabet_only(text) #Get Alphabet
     text = sub(r'sobat pintar','',text) # sorry:(
+    text = pre.remove_whitespace(text) #Remove Whitespace
     text = [token.text for token in nlp(text)] #Token
-    text = slang(text)#slang word
-    text = sub(r'\s+', ' ', text) #remove white space
+    text = pre.slang(text)
     text = [token.lemma_ for token in nlp(text) if token.lemma_ not in stopwords] #Lemma & stopword
     
     return text
@@ -79,7 +63,8 @@ def get_similar(event):
     try:
         entryId = event['entryId']
         loaded_model,loaded_corpus,loaded_dict,dict_encoder = load_model()
-    except:
+    except Exception as e:
+#         print(e)
         pass
     
     try:
@@ -87,7 +72,8 @@ def get_similar(event):
         statement = " WHERE entryId = {}"
         data = open_table(['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
         text = data[1].values[0]
-    except:
+    except Exception as e:
+#         print(e)
         pass
     
     try:
@@ -99,14 +85,16 @@ def get_similar(event):
         query = lda_index[loaded_model[bow]]
         # # Sort the similarities
         sort_sim = sorted(enumerate(query), key=lambda item: -item[1])
-    except:
+    except Exception as e:
+#         print(e)
         pass
     
     try:
         result = [x[0] for x in sort_sim] #Get Univ ID
         result = encode(result,dict_encoder)
         result.remove(entryId) #Remove Input EntryId
-    except:
+    except Exception as e:
+#         print(e)
         pass
     
     return result[:5]
