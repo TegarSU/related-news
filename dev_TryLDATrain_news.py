@@ -10,6 +10,7 @@ from openTable import *
 from filepath import *
 
 from re import sub
+from datetime import datetime
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -115,27 +116,49 @@ def save_model(model):
     
 def train():
     dict_encoder = {}
+    
+    try:
+        #Get today Date
+        date_end = datetime.today().strftime('%Y-%m-%d')
 
-    #get data
-    data = get_data()
-    data = rename_column(data,{0:'entryId', 1:'content'})
-    data.content = data.content.apply(preprocessing)
+        #get data
+        data = get_data()
+        data = rename_column(data,{0:'entryId', 1:'content'})
+        data.content = data.content.apply(preprocessing)
+        
+        #Save to Txt
+        with open('../data/train_news.txt', 'a+') as output:
+            output.write("Get Today Data Success, {} \n".format(date_end))
+        print("Get today Date Success")
+    except:
+        print("Get today Date Failed")
+        with open('../data/train_news.txt', 'a+') as output:
+            output.write("Get Today Data Success, {} \n".format(date_end))
+    
+    try:
+        #make corpus
+        mylist,dictionary,corpus = make_corpus(data)
+        
+        #make dict encode
+        for i,j in zip(range(len(mylist)),data.entryId.tolist()):
+            dict_encoder[i] = j
+            
+        with open('../data/dict_encoder.txt', 'w') as file:
+            file.write(dumps(dict_encoder)) # use `json.loads` to do the reverse
+        print("Make Dictionary and Corpus Success")
 
-    #make corpus
-    mylist,dictionary,corpus = make_corpus(data)
-
-    #make dict encode
-    for i,j in zip(range(len(mylist)),data.entryId.tolist()):
-        dict_encoder[i] = j
-
-    with open('../data/dict_encoder.txt', 'w') as file:
-         file.write(dumps(dict_encoder)) # use `json.loads` to do the reverse
-
-    start=3
-    limit=51
-    best_model = get_best_topic(dictionary, corpus=corpus, texts=mylist, start=start, limit=limit)
-
-    save_model(best_model)
+    except:
+        print("Make Dictionary and Corpus Failed")
+    
+    try:
+        start=3
+        limit=51
+        best_model = get_best_topic(dictionary, corpus=corpus, texts=mylist, start=start, limit=limit)
+        
+        save_model(best_model)
+        print("Train LDA Success")
+    except:
+        print("Train LDA Failed")
     
 train()
 
@@ -145,15 +168,7 @@ train()
 # elapsed_time = process_time() - t
 # print(elapsed_time)
 
-
-# In[1]:
-
-
 # from time import process_time
-
-
-# In[1]:
-
 
 # t = process_time()
 # #do some stuff
