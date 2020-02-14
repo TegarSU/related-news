@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
@@ -10,13 +9,13 @@ from preprocessing import preprocessing_text as pre
 
 # import gensim
 from gensim.models.ldamodel import LdaModel
-from gensim.models import Phrases
+from gensim.models import Phrases,TfidfModel
 from gensim import corpora
 from gensim.models.coherencemodel import CoherenceModel
 
 from pickle import dump
 from json import dumps
-from datetime import datetime
+from datetime import datetime 
 from re import sub
 import warnings
 warnings.filterwarnings('ignore')
@@ -29,6 +28,7 @@ stopwords |= {"nya","jurusan","jurus","the","of"}
 
 def preprocessing(text):
     text = pre.remove_tag(text) #Remove Tag
+    text = pre.remove_whitespace(text) #Remove Whitespace
     text = pre.lower(text) #Lower
     text = pre.remove_link(text) #Remove Link
     text = pre.alphabet_only(text) #Get Alphabet
@@ -62,6 +62,26 @@ def get_best_topic(dictionary, corpus, texts, limit, start):
         
     return best_model
 
+def tfidf_keyword(corpus,dictionary,mylist):
+    model = TfidfModel(corpus=corpus,id2word=dictionary)  # fit model
+    model.save('../data/tfidf.h5')
+    
+    bow = [dictionary.doc2bow(mylist[i]) for i in range(len(mylist))]
+    vector = [model[bow[i]] for i in range(len(mylist))]
+    vector = [sorted(vector[i], key=lambda tup: tup[1],reverse=True) for i in range(len(vector))] #Sort
+    
+    feature = []
+    result = []
+    
+    for i in vector:
+        for j in range(len(i)):
+            feature.append(dictionary[i[j][0]])
+
+        result.append(feature[:150])
+        feature = []
+        
+    return result
+
 def make_corpus(data):
     #Make list of list
     mylist = []
@@ -69,7 +89,7 @@ def make_corpus(data):
         mylist.append(j.content)
 
     # Add bigrams and trigrams to docs,minimum count 10 means only that appear 10 times or more.
-    bigram = Phrases(mylist, min_count=10)
+    bigram = Phrases(mylist, min_count=8)
     for idx in range(len(mylist)):
         for token in bigram[mylist[idx]]:
             if '_' in token:
@@ -87,9 +107,9 @@ def make_corpus(data):
     
     return mylist,dictionary,corpus
     
-def save_model(model):
-    #Save Model
-    model.save('../data/lda.h5')
+def save_model(lda_model):
+    #Save Model LDA
+    lda_model.save('../data/lda.h5')
     
 def train():
     dict_encoder = {}
@@ -110,7 +130,7 @@ def train():
     except Exception as e:
         print("Get today Date Failed",e)
         with open('../data/train_news.txt', 'a+') as output:
-            output.write("Get Today Data Success, {} \n".format(date_end))
+            output.write("Get Today Data Failed, {} \n".format(date_end))
     
     try:
         #make corpus
@@ -126,7 +146,14 @@ def train():
 
     except Exception as e:
         print("Make Dictionary and Corpus Failed")
-    
+        
+    try:
+        #TF-IDF
+        mylist = tfidf_keyword(corpus,dictionary,mylist)
+        print("get keyword Success")
+    except Exception as e:
+        print("get keyword Failed",e)
+        
     try:
         start=3
         limit=51
@@ -135,6 +162,6 @@ def train():
         save_model(best_model)
         print("Train LDA Success")
     except Exception as e:
-        print("Train LDA Failed")
+        print("Train LDA Failed",e)
     
 train()
