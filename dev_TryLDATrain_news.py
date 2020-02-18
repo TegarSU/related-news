@@ -41,7 +41,7 @@ def preprocessing(text):
     return text
 
 def get_data():
-    data = open_table(['entryId','content'],'BlogsEntry')
+    data,status = open_table(['entryId','content'],'BlogsEntry')
     
     return data
 

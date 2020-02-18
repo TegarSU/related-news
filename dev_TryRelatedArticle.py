@@ -76,7 +76,7 @@ def new_user(event):
     try:
         #Get Doc
         statement = " WHERE entryId = {}"
-        data = open_table(['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
+        data,status = open_table(['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
         text = data[1].values[0]
     except Exception as e:
         print(e)
@@ -122,9 +122,9 @@ def save_recommendation(entryId,recommendation,last_update):
 #     last_update = date.today()
     
     table = "related_news_lda"
-    column = ['entryId','recommendation','updateDate']
+    column = ['entryId','recommendation','tanggal']
     value = [entryId,str(recommendation),last_update]
-    to_db(table,column,value)
+    status = to_db(table,column,value)
 
 def get_similar(event):
     entryId = event['entryId']
@@ -132,7 +132,7 @@ def get_similar(event):
     today = date.today()
     refreshtime = today - timedelta(days=4)
     statement = ' where entryId = {}'
-    recommendation = open_table_ds(['*'],'related_news_lda',statement=statement.format(entryId))
+    recommendation,status = open_table_ds(['*'],'related_news_lda',statement=statement.format(entryId))
 
     #First Time
     if not recommendation:
@@ -149,9 +149,9 @@ def get_similar(event):
             statement = ' where entryId = {}'
             data = {
                 'recommedation':result,
-                'updateDate':today
+                'tanggal':today
             }
-            update_db('related_news_lda',data,statement=statement.format(entryId))
+            status = update_db('related_news_lda',data,statement=statement.format(entryId))
 #             replace_to_database_news(userId,str(result['recommendation']),today)
         #Already Exist
         else:
