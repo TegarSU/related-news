@@ -1,6 +1,7 @@
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
+from AccesDB import *
 from preprocessing import preprocessing_text as pre
 
 # import gensim
@@ -66,7 +67,7 @@ def encode(docId,dict_encoder):
         
     return entryId    
 
-def new_user(event):
+def new_user(koneksi,event):
     entryId = event['entryId']
     try:
         loaded_model,loaded_corpus,loaded_dict,loaded_tfidf,dict_encoder = load_model()
@@ -76,7 +77,7 @@ def new_user(event):
     try:
         #Get Doc
         statement = " WHERE entryId = {}"
-        data,status = open_table(['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
+        data,status = open_table(koneksi,['entryId','content'],'BlogsEntry',statement=statement.format(entryId))
         text = data[1].values[0]
     except Exception as e:
         print(e)
@@ -118,43 +119,53 @@ def new_user(event):
     
     return result[:10]
 
-def save_recommendation(entryId,recommendation,last_update):
-#     last_update = date.today()
-    
+def save_recommendation(koneksi,entryId,recommendation,last_update):    
     table = "related_news_lda"
     column = ['entryId','recommendation','tanggal']
     value = [entryId,str(recommendation),last_update]
-    status = to_db(table,column,value)
+    status = to_db(koneksi,table,column,value)
 
-def get_similar(event):
+def get_similar_article(event):
+    #DS
+    ds_server,ds_koneksi = Connection_2()
+    #Prod
+    prod_server,prod_koneksi = Connection()
+    
     entryId = event['entryId']
 
     today = date.today()
     refreshtime = today - timedelta(days=4)
     statement = ' where entryId = {}'
-    recommendation,status = open_table_ds(['*'],'related_news_lda',statement=statement.format(entryId))
+    recommendation,status = open_table_ds(ds_koneksi,['*'],'related_news_lda',statement=statement.format(entryId))
 
     #First Time
     if not recommendation:
-        result = new_user(event)
-        save_recommendation(entryId,result,today)
+        result = new_user(prod_koneksi,event)
+        save_recommendation(ds_koneksi,entryId,result,today)
+        ds_koneksi.commit()
 
     else:
         recommendation = recommendation[0]
         recommendation_refreshtime = recommendation[2]
         #Refresh Time
         if refreshtime > recommendation_refreshtime:
-            result = get_similar(event)
+            result = new_user(prod_koneksi,event)
             
             statement = ' where entryId = {}'
             data = {
-                'recommedation':result,
+                'recommendation':result,
                 'tanggal':today
             }
-            status = update_db('related_news_lda',data,statement=statement.format(entryId))
-#             replace_to_database_news(userId,str(result['recommendation']),today)
+            status = update_db(ds_koneksi,'related_news_lda',data,statement=statement.format(entryId))
+            ds_koneksi.commit()
         #Already Exist
         else:
             result = literal_eval(recommendation[1])
+    
+    ds_koneksi.close()
+    ds_server.stop()
+    
+    prod_koneksi.close()
+    prod_server.stop()
     
     return result

@@ -4,6 +4,7 @@
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
+from AccesDB import *
 from filepath import *
 from preprocessing import preprocessing_text as pre
 
@@ -40,8 +41,8 @@ def preprocessing(text):
     
     return text
 
-def get_data():
-    data,status = open_table(['entryId','content'],'BlogsEntry')
+def get_data(koneksi):
+    data,status = open_table(koneksi,['entryId','content'],'BlogsEntry')
     
     return data
 
@@ -112,6 +113,8 @@ def save_model(lda_model):
     lda_model.save('../data/lda.h5')
     
 def train():
+    prod_server,prod_koneksi = Connection()
+
     dict_encoder = {}
     
     try:
@@ -119,7 +122,7 @@ def train():
         date_end = datetime.today().strftime('%Y-%m-%d')
 
         #get data
-        data = get_data()
+        data = get_data(prod_koneksi)
         data = rename_column(data,{0:'entryId', 1:'content'})
         data.content = data.content.apply(preprocessing)
         
@@ -127,10 +130,16 @@ def train():
         with open('../data/train_news.txt', 'a+') as output:
             output.write("Get Today Data Success, {} \n".format(date_end))
         print("Get today Date Success")
+        
+        prod_koneksi.close()
+        prod_server.stop()
     except Exception as e:
         print("Get today Date Failed",e)
         with open('../data/train_news.txt', 'a+') as output:
             output.write("Get Today Data Failed, {} \n".format(date_end))
+            
+        prod_koneksi.close()
+        prod_server.stop()
     
     try:
         #make corpus
@@ -163,5 +172,8 @@ def train():
         print("Train LDA Success")
     except Exception as e:
         print("Train LDA Failed",e)
+        
+#     prod_koneksi.close()
+#     prod_server.stop()
     
 train()
