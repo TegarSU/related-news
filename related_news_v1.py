@@ -75,8 +75,8 @@ def related_news_1(event):
     if not recommendation:
         data = get_data(prod_koneksi)
         news_corr = pivot_table(data)
-        result = get_recommendation(news_corr,entryId)
-        result = str(result)
+        result = str(get_recommendation(news_corr,entryId))
+#         result = str(result)
         result = literal_eval(result)
         save_recommendation(ds_koneksi,entryId,result,today)
         ds_koneksi.commit()
@@ -88,10 +88,11 @@ def related_news_1(event):
         if refreshtime > recommendation_refreshtime:
             data = get_data(prod_koneksi)
             news_corr = pivot_table(data)
-            result = get_recommendation(news_corr,entryId)
+            result = str(get_recommendation(news_corr,entryId))
+            result = literal_eval(result)
             statement = ' where entryId = {}'
             data = {
-                'recommedation':result,
+                'recommendation':result,
                 'tanggal':today
             }
             status = update_db(ds_koneksi,'related_news_svd',data,statement=statement.format(entryId))
