@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[4]:
+
+
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('..', 'module')))
 from openTable import *
@@ -130,47 +136,111 @@ def save_recommendation(koneksi,entryId,recommendation,last_update):
     value = [entryId,str(recommendation),last_update]
     status = to_db(koneksi,table,column,value)
 
-def get_similar_article(event):
-    #DS
-    ds_server,ds_koneksi = Connection_2()
-    #Prod
-    prod_server,prod_koneksi = Connection()
-    
+def get_similar_article(event):    
+    related = []
     entryId = event['entryId']
+    
+    try:
+        #DS
+        ds_server,ds_koneksi = Connection_2()
+#         print('open connection 2')
 
-    today = date.today()
-    refreshtime = today - timedelta(days=4)
-    statement = ' where entryId = {}'
-    recommendation,status = open_table_ds(ds_koneksi,['*'],'related_news_lda',statement=statement.format(entryId))
+        today = date.today()
+        refreshtime = today - timedelta(days=4)
+        statement = ' where entryId = {}'
+        recommendation,status = open_table_ds(ds_koneksi,['*'],'related_news_lda',statement=statement.format(entryId))
+#         print('get data')
+        
+        ds_koneksi.close()
+        ds_server.stop()
+#         print('close connection 2')
+    except:
+        ds_koneksi.close()
+        ds_server.stop()
+#         print('close connection 2')
+        return related
 
     #First Time
     if not recommendation:
-        result = new_user(prod_koneksi,event)
-        save_recommendation(ds_koneksi,entryId,result,today)
-        ds_koneksi.commit()
+#         print('first time')
+        #Prod
+        try:
+            prod_server,prod_koneksi = Connection()
+#             print('open connection')
+            result = new_user(prod_koneksi,event)
+#             print('calculating')
+            prod_koneksi.close()
+            prod_server.stop()
+#             print('close connection')
+        except:
+            prod_koneksi.close()
+            prod_server.stop()
+#             print('close connection')
+            return related
+        
+        try:
+            ds_server,ds_koneksi = Connection_2()
+#             print('open connection 2')
+            save_recommendation(ds_koneksi,entryId,result,today)
+            ds_koneksi.commit()
+#             print('save')
+            
+            ds_koneksi.close()
+            ds_server.stop()
+#             print('close connection 2')
+        except:           
+            ds_koneksi.close()
+            ds_server.stop()
+#             print('close connection 2')
+            
+            return related
 
     else:
         recommendation = recommendation[0]
         recommendation_refreshtime = recommendation[2]
+#         print('get refresh time')
         #Refresh Time
         if refreshtime > recommendation_refreshtime:
-            result = new_user(prod_koneksi,event)
+            #Prod
+            try:
+                prod_server,prod_koneksi = Connection()
+#                 print('open connection')
+                result = new_user(prod_koneksi,event)
+#                 print('calculating')
+                prod_koneksi.close()
+                prod_server.stop()
+#                 print('close connection')
+            except:
+                prod_koneksi.close()
+                prod_server.stop()
+#                 print('close connection')
+                
+                return related
             
             statement = ' where entryId = {}'
             data = {
                 'recommendation':result,
                 'tanggal':today
             }
-            status = update_db(ds_koneksi,'related_news_lda',data,statement=statement.format(entryId))
-            ds_koneksi.commit()
+            try:
+                ds_server,ds_koneksi = Connection_2()
+#                 print('open connection 2')
+                status = update_db(ds_koneksi,'related_news_lda',data,statement=statement.format(entryId))
+                ds_koneksi.commit()
+#                 print('save')
+                
+                ds_koneksi.close()
+                ds_server.stop()
+#                 print('close connection 2')
+            except:
+                ds_koneksi.close()
+                ds_server.stop()
+#                 print('close connection 2')
+                
+                return related
         #Already Exist
         else:
             result = literal_eval(recommendation[1])
-    
-    ds_koneksi.close()
-    ds_server.stop()
-    
-    prod_koneksi.close()
-    prod_server.stop()
-    
+#             print('already exsist')
+            
     return result
